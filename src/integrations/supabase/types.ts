@@ -156,8 +156,10 @@ export type Database = {
       }
       voice_wallets: {
         Row: {
+          checkin_day: number
           created_at: string
           id: string
+          last_checkin_date: string | null
           last_seen_at: string
           nickname: string
           paid_coins: number
@@ -165,8 +167,10 @@ export type Database = {
           token_hash: string
         }
         Insert: {
+          checkin_day?: number
           created_at?: string
           id?: string
+          last_checkin_date?: string | null
           last_seen_at?: string
           nickname: string
           paid_coins?: number
@@ -174,8 +178,10 @@ export type Database = {
           token_hash: string
         }
         Update: {
+          checkin_day?: number
           created_at?: string
           id?: string
+          last_checkin_date?: string | null
           last_seen_at?: string
           nickname?: string
           paid_coins?: number
@@ -184,11 +190,48 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_rewards: {
+        Row: {
+          coins: number
+          created_at: string
+          id: string
+          reference: string
+          source: string
+          wallet_id: string
+        }
+        Insert: {
+          coins: number
+          created_at?: string
+          id?: string
+          reference: string
+          source: string
+          wallet_id: string
+        }
+        Update: {
+          coins?: number
+          created_at?: string
+          id?: string
+          reference?: string
+          source?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_rewards_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "voice_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      checkin_reward: { Args: { p_day: number }; Returns: number }
+      claim_daily_checkin: { Args: { p_token_hash: string }; Returns: Json }
       credit_coin_order: {
         Args: {
           p_amount_cents: number
@@ -206,6 +249,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      rewarded_video_coins: { Args: { p_seconds: number }; Returns: number }
       spend_search_coin: {
         Args: { _token_hash: string }
         Returns: {
