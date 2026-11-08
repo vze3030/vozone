@@ -2,13 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import {
-  Phone, MessageCircle, History, UserPlus, Bell, ChevronUp, Mic, MicOff, PhoneOff, Send, ArrowLeft, Check, SkipForward, Flag,
+  Phone, MessageCircle, History, UserPlus, ChevronUp, Mic, MicOff, PhoneOff, Send, ArrowLeft, Check, SkipForward, Flag, Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { freshEntry, genderOptions, genderLabel, genderSymbol, reportReasons, reportSchema, type OwnGender } from "@/lib/voice-preferences";
 import { submitReport } from "@/lib/reports.functions";
 import { BuyCoinsDialog } from "@/components/buy-coins-dialog";
+import { RewardsDialog, ShareButton } from "@/components/rewards-dialog";
+import { AdSlot } from "@/components/ad-slot";
 import { openWallet, spendSearchCoin } from "@/lib/wallet.functions";
 import { createVoiceEntry, checkVoiceEntry, registerVoiceRoom, type EntryCredential } from "@/lib/voice-entry.functions";
 import bunny from "@/assets/bunny.png";
@@ -104,6 +106,8 @@ function App() {
   };
   const [coins, setCoins] = useState<{ promo: number; paid: number } | null>(null);
   const [buyOpen, setBuyOpen] = useState(false);
+  const [rewardsOpen, setRewardsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const checkEntry = useServerFn(checkVoiceEntry);
   const registerRoom = useServerFn(registerVoiceRoom);
   const sendReport = useServerFn(submitReport);
@@ -308,6 +312,7 @@ function App() {
       <div className="p-5">
         <Button variant="ghost" size="lg" onClick={cancel} className="w-full rounded-full bg-destructive py-4 text-lg font-bold text-destructive-foreground">Cancelar pesquisa</Button>
       </div>
+      <AdSlot />
     </Screen>
   );
 
@@ -342,6 +347,7 @@ function App() {
           </Button>
           <Button size="lg" onClick={next} className="h-16 gap-2 rounded-full px-5"><SkipForward size={22} /> Próximo</Button>
         </div>
+        <AdSlot />
       </Screen>
     );
   }
@@ -352,6 +358,17 @@ function App() {
 
   return (
     <Screen>
+      <RewardsDialog open={rewardsOpen} onOpenChange={setRewardsOpen} onBalance={setCoins} />
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-sm">
+          <DialogTitle>Meu perfil</DialogTitle>
+          <DialogDescription>{me.name} · {genderLabel(me.gender)} · {mode}</DialogDescription>
+          <div className="flex justify-between border-y border-border py-3 text-sm"><span>Moedas de bônus</span><strong>{coins?.promo ?? "—"}</strong></div>
+          <div className="flex justify-between text-sm"><span>Moedas compradas</span><strong>{coins?.paid ?? "—"}</strong></div>
+          <Button className="gap-2" onClick={() => { setProfileOpen(false); setRewardsOpen(true); }}><Gift size={18} /> Ganhar Moedas Grátis</Button>
+          <ShareButton />
+        </DialogContent>
+      </Dialog>
       <Dialog open={reportTarget !== null} onOpenChange={(open) => { if (!open && !reportBusy) setReportTarget(null); }}>
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
           <DialogTitle>Denunciar {reportTarget?.person.name}</DialogTitle>
@@ -367,14 +384,14 @@ function App() {
         </DialogContent>
       </Dialog>
       <header className="flex items-center justify-between px-5 pt-5">
-        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-accent">
+        <Button variant="ghost" size="icon" aria-label="Meu perfil" onClick={() => setProfileOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent">
           <img src={ghost} alt="Perfil" width={816} height={816} className="h-11 w-11 object-contain" />
-        </div>
-        <img src={vozoneLogo} alt="Vozone" width={1000} height={280} className="h-7 w-auto object-contain" />
-        <div className="flex items-center gap-4 text-muted-foreground">
-          {coins && <button type="button" onClick={() => setBuyOpen(true)} aria-label="Saldo de moedas" className="rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground">🪙 {coins.promo + coins.paid} +</button>}
+        </Button>
+        <img src={vozoneLogo} alt="Vozone" width={1000} height={280} className="h-7 w-28 object-contain" />
+        <div className="flex items-center gap-1 text-muted-foreground">
+          {coins && <Button variant="secondary" size="sm" onClick={() => setBuyOpen(true)} aria-label="Saldo de moedas" className="rounded-full px-2 text-sm font-bold">🪙 {coins.promo + coins.paid} +</Button>}
           <BuyCoinsDialog open={buyOpen} onOpenChange={setBuyOpen} onBalance={setCoins} />
-          <UserPlus size={24} /><Bell size={24} />
+          <Button variant="ghost" size="icon" aria-label="Ganhar Moedas Grátis" title="Ganhar Moedas Grátis" onClick={() => setRewardsOpen(true)}><Gift size={22} /></Button>
         </div>
       </header>
 
@@ -389,6 +406,10 @@ function App() {
             </div>
           </div>
           <div className="space-y-4 px-5 pb-4">
+            <div className="space-y-2">
+              <Button variant="secondary" onClick={() => setRewardsOpen(true)} className="w-full gap-2"><Gift size={18} /> Ganhar Moedas Grátis</Button>
+              <ShareButton />
+            </div>
             <div className="flex items-center justify-center gap-2 text-muted-foreground">{me.name} <GenderIndicator gender={me.gender} /></div>
             <div className="relative grid grid-cols-2 gap-3">
               <Pill onClick={() => setMenu(menu === "g" ? null : "g")} label={gender === "Todos" ? "Gênero" : gender} icon="⚥" />
