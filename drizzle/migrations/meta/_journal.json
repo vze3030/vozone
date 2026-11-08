@@ -36,6 +36,13 @@
       "when": 1793972792165,
       "tag": "0004_spend_search_coin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794151512368,
+      "tag": "0005_daily_checkin_rewards",
+      "breakpoints": true
     }
   ]
 }
