@@ -1,4 +1,8 @@
 # Voice monetization MVP
+- [ ] Add atomic thirty-day check-in, calendar and reward balance updates with rule tests.
+- [ ] Add guest profile, free-coin modal, native sharing and reserved search/call banner slots.
+- [ ] Connect real rewarded-video provider with independently verified completion; blocked until provider account and eligible integration exist.
+- [ ] Verify check-in, repeat-click protection, sharing and mobile layout through the live app.
 - [x] Register four one-time test products at the requested prices: vozone_coins_10_brl (100 cents), vozone_coins_20_brl (200 cents), vozone_coins_30_brl (300 cents), vozone_coins_50_brl (500 cents), fixed quantity 1 and personal-use SaaS tax classification.
 - [x] Confirm one-time purchases only: confirmed purchased coins add to existing balance, never expire and survive nickname changes. No subscriptions or plan changes. Owner requires Pix only and declined test card checkout.
 - [ ] Implement embedded checkout and atomic purchased-coin fulfillment once a Pix-capable integration is connected; the current test account reports Pix unavailable.
