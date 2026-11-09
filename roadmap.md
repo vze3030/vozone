@@ -1,4 +1,5 @@
 # Voice monetization MVP
+- [ ] Restore left-side friend and notification tools while preserving purchases, rewards, sharing and credit protection; verify mobile and desktop flows.
 - [x] Add atomic thirty-day check-in, calendar and reward balance updates with rule tests.
 - [x] Add guest profile, free-coin modal, native sharing and reserved search/call banner slots.
 - [ ] Connect real rewarded-video provider with independently verified completion; blocked until provider account and eligible integration exist.
