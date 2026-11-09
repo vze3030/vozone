@@ -32,7 +32,7 @@ const peer = { id: "peer", name: "Ana", gender: "F", country: "🌏 Mundo" };
 async function enter() {
   render(<App />);
   fireEvent.change(await screen.findByPlaceholderText("Seu apelido"), { target: { value: "Teste" } });
-  fireEvent.click(screen.getByRole("button", { name: "Homem", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: /Homem/ }));
   fireEvent.click(screen.getByRole("button", { name: /Mundo/ }));
   fireEvent.click(screen.getByRole("button", { name: "Entrar", exact: true }));
   await screen.findByRole("button", { name: "Saldo de moedas" });
