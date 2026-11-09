@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import {
-  Phone, MessageCircle, History, UserPlus, ChevronUp, Mic, MicOff, PhoneOff, Send, ArrowLeft, Check, SkipForward, Flag, Gift,
+  Phone, MessageCircle, History, UserPlus, Bell, ChevronUp, Mic, MicOff, PhoneOff, Send, ArrowLeft, Check, SkipForward, Flag, Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -108,6 +108,9 @@ function App() {
   const [buyOpen, setBuyOpen] = useState(false);
   const [rewardsOpen, setRewardsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [friendsOpen, setFriendsOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [readCounts, setReadCounts] = useState<Record<string, number>>({});
   const checkEntry = useServerFn(checkVoiceEntry);
   const registerRoom = useServerFn(registerVoiceRoom);
   const sendReport = useServerFn(submitReport);
@@ -126,7 +129,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    setHistory(load("vz_hist", [])); setFriends(load("vz_friends", [])); setChats(load("vz_chats", {}));
+    setHistory(load("vz_hist", [])); setFriends(load("vz_friends", [])); setChats(load("vz_chats", {})); setReadCounts(load("vz_read", {}));
     guestId.current = freshEntry(localStorage).id;
     blocked.current = new Set(load<string[]>("vz_blocked", []));
     excluded.current = new Set(blocked.current);
@@ -140,6 +143,16 @@ function App() {
       setChats((prev) => { const n = { ...prev, [from.id]: [...(prev[from.id] || []), { from: "ele" as const, text }] }; save("vz_chats", n); return n; });
     });
   }, [me]);
+  useEffect(() => {
+    if (!openChat) return;
+    const count = (chats[openChat.id] ?? []).filter((message) => message.from === "ele").length;
+    setReadCounts((previous) => {
+      if (previous[openChat.id] === count) return previous;
+      const updated = { ...previous, [openChat.id]: count };
+      save("vz_read", updated);
+      return updated;
+    });
+  }, [openChat, chats]);
   const suspendRef = useRef(() => {});
   suspendRef.current = () => {
     hangupRef.current();
@@ -297,8 +310,71 @@ function App() {
     } catch { setCoins(null); }
   }} />;
 
+  const unreadCount = friends.reduce((total, friend) => total + Math.max(0, (chats[friend.id] ?? []).filter((message) => message.from === "ele").length - (readCounts[friend.id] ?? 0)), 0);
+  const recentPeople = [...new Map([...(partner ? [partner] : []), ...history].filter((person) => !blocked.current.has(person.id)).map((person) => [person.id, person])).values()];
+  const tools = <div aria-label="Ferramentas sociais" className="absolute left-5 top-5 z-10 flex w-11 flex-col items-center gap-2">
+    <Button variant="ghost" size="icon" aria-label="Meu perfil" title="Meu perfil" onClick={() => setProfileOpen(true)} className="h-11 w-11 overflow-hidden rounded-full bg-accent">
+      <img src={ghost} alt="Perfil" width={816} height={816} className="h-11 w-11 object-contain" />
+    </Button>
+    <Button variant="ghost" size="icon" aria-label="Adicionar Amigo" title="Adicionar Amigo" onClick={() => setFriendsOpen(true)} className="h-11 w-11 text-muted-foreground"><UserPlus size={22} /></Button>
+    <Button variant="ghost" size="icon" aria-label="Notificações" title="Notificações" onClick={() => setNotificationsOpen(true)} className="relative h-11 w-11 text-muted-foreground">
+      <Bell size={22} />
+      {unreadCount > 0 && <span className="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+    </Button>
+  </div>;
+  const sharedDialogs = <>
+    <BuyCoinsDialog open={buyOpen} onOpenChange={setBuyOpen} onBalance={setCoins} />
+    <RewardsDialog open={rewardsOpen} onOpenChange={setRewardsOpen} onBalance={setCoins} />
+    <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+      <DialogContent className="max-h-[90dvh] max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-sm">
+        <DialogTitle>Meu perfil</DialogTitle>
+        <DialogDescription>{me.name} · {genderLabel(me.gender)} · {mode}</DialogDescription>
+        <div className="flex justify-between border-y border-border py-3 text-sm"><span>Moedas de bônus</span><strong>{coins?.promo ?? "—"}</strong></div>
+        <div className="flex justify-between text-sm"><span>Moedas compradas</span><strong>{coins?.paid ?? "—"}</strong></div>
+        <Button variant="secondary" onClick={() => { setProfileOpen(false); setBuyOpen(true); }}>Comprar créditos com Pix</Button>
+        <Button className="gap-2" onClick={() => { setProfileOpen(false); setRewardsOpen(true); }}><Gift size={18} /> Ganhar Moedas Grátis</Button>
+        <ShareButton />
+      </DialogContent>
+    </Dialog>
+    <Dialog open={friendsOpen} onOpenChange={setFriendsOpen}>
+      <DialogContent className="max-h-[90dvh] max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-sm">
+        <DialogTitle>Adicionar Amigo</DialogTitle>
+        <DialogDescription>Contatos das suas chamadas</DialogDescription>
+        {recentPeople.length === 0 && <p className="text-sm text-muted-foreground">Nenhum contato recente.</p>}
+        {recentPeople.map((person) => {
+          const added = friends.some((friend) => friend.id === person.id);
+          return <div key={person.id} className="flex items-center gap-3 border-b border-border py-2">
+            <Avatar g={person.gender} />
+            <span className="min-w-0 flex-1 break-words font-semibold">{person.name} <GenderIndicator gender={person.gender} /></span>
+            <Button variant="secondary" size="icon" aria-label={added ? `${person.name} já adicionado` : `Adicionar ${person.name}`} title={added ? "Amigo adicionado" : "Adicionar amigo"} disabled={added} onClick={() => addFriend(person)}>{added ? <Check size={18} /> : <UserPlus size={18} />}</Button>
+          </div>;
+        })}
+        <Button variant="secondary" className="gap-2" onClick={() => { setFriendsOpen(false); setTab("msg"); }}><MessageCircle size={18} /> Meus amigos e mensagens</Button>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+      <DialogContent className="max-h-[90dvh] max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-sm">
+        <DialogTitle>Notificações</DialogTitle>
+        <DialogDescription>Mensagens recebidas dos seus contatos</DialogDescription>
+        {!friends.some((friend) => chats[friend.id]?.some((message) => message.from === "ele")) && <p className="text-sm text-muted-foreground">Nenhuma notificação por enquanto.</p>}
+        {friends.map((friend) => {
+          const incoming = (chats[friend.id] ?? []).filter((message) => message.from === "ele");
+          const last = incoming.at(-1);
+          if (!last) return null;
+          const unread = Math.max(0, incoming.length - (readCounts[friend.id] ?? 0));
+          return <Button variant="ghost" key={friend.id} className="h-auto w-full justify-start gap-3 py-3 text-left" onClick={() => { setNotificationsOpen(false); setOpenChat(friend); }}>
+            <Avatar g={friend.gender} />
+            <span className="min-w-0 flex-1"><span className="block truncate font-bold">{friend.name}</span><span className="block truncate text-sm text-muted-foreground">{last.text}</span></span>
+            {unread > 0 && <span className="text-sm font-bold text-primary">{unread}</span>}
+          </Button>;
+        })}
+      </DialogContent>
+    </Dialog>
+  </>;
+
   if (stage === "busca") return (
     <Screen>
+      {tools}{sharedDialogs}
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
         <div className="relative">
           <span className="absolute inset-0 rounded-full bg-accent animate-ring" />
@@ -320,6 +396,7 @@ function App() {
     const isFriend = friends.some((f) => f.id === partner.id);
     return (
       <Screen>
+        {tools}{sharedDialogs}
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
           <div className="flex h-40 w-40 items-center justify-center rounded-full bg-accent">
             <img src={partner.gender === "F" ? bunny : ghost} alt="" width={816} height={816} className="h-36 w-36 object-contain" />
@@ -358,17 +435,7 @@ function App() {
 
   return (
     <Screen>
-      <RewardsDialog open={rewardsOpen} onOpenChange={setRewardsOpen} onBalance={setCoins} />
-      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
-        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-sm">
-          <DialogTitle>Meu perfil</DialogTitle>
-          <DialogDescription>{me.name} · {genderLabel(me.gender)} · {mode}</DialogDescription>
-          <div className="flex justify-between border-y border-border py-3 text-sm"><span>Moedas de bônus</span><strong>{coins?.promo ?? "—"}</strong></div>
-          <div className="flex justify-between text-sm"><span>Moedas compradas</span><strong>{coins?.paid ?? "—"}</strong></div>
-          <Button className="gap-2" onClick={() => { setProfileOpen(false); setRewardsOpen(true); }}><Gift size={18} /> Ganhar Moedas Grátis</Button>
-          <ShareButton />
-        </DialogContent>
-      </Dialog>
+      {tools}{sharedDialogs}
       <Dialog open={reportTarget !== null} onOpenChange={(open) => { if (!open && !reportBusy) setReportTarget(null); }}>
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
           <DialogTitle>Denunciar {reportTarget?.person.name}</DialogTitle>
@@ -383,21 +450,13 @@ function App() {
           <Button disabled={reportBusy} onClick={confirmReport}><Flag size={18} /> {reportBusy ? "Enviando..." : "Enviar denúncia"}</Button>
         </DialogContent>
       </Dialog>
-      <header className="flex items-center justify-between px-5 pt-5">
-        <Button variant="ghost" size="icon" aria-label="Meu perfil" onClick={() => setProfileOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent">
-          <img src={ghost} alt="Perfil" width={816} height={816} className="h-11 w-11 object-contain" />
-        </Button>
+      <header className="flex h-16 shrink-0 items-center justify-center px-20 pt-3">
         <img src={vozoneLogo} alt="Vozone" width={1000} height={280} className="h-7 w-28 object-contain" />
-        <div className="flex items-center gap-1 text-muted-foreground">
-          {coins && <Button variant="secondary" size="sm" onClick={() => setBuyOpen(true)} aria-label="Saldo de moedas" className="rounded-full px-2 text-sm font-bold">🪙 {coins.promo + coins.paid} +</Button>}
-          <BuyCoinsDialog open={buyOpen} onOpenChange={setBuyOpen} onBalance={setCoins} />
-          <Button variant="ghost" size="icon" aria-label="Ganhar Moedas Grátis" title="Ganhar Moedas Grátis" onClick={() => setRewardsOpen(true)}><Gift size={22} /></Button>
-        </div>
       </header>
 
       {tab === "voz" && (
         <>
-          <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          <div className="flex min-h-72 flex-1 flex-col items-center justify-center px-6 text-center">
             <img src={bunny} alt="Coelhinho" width={816} height={816} className="h-36 w-36 object-contain" />
             <h1 className="mt-4 text-4xl font-extrabold">{(SLIDES[slide] ?? SLIDES[0])?.t}</h1>
             <p className="mt-2 text-lg text-muted-foreground">{(SLIDES[slide] ?? SLIDES[0])?.s}</p>
@@ -406,6 +465,7 @@ function App() {
             </div>
           </div>
           <div className="space-y-4 px-5 pb-4">
+            {coins && <div className="flex justify-center"><Button variant="secondary" size="sm" onClick={() => setBuyOpen(true)} aria-label="Saldo de moedas" className="rounded-full px-3 text-sm font-bold">🪙 {coins.promo + coins.paid} +</Button></div>}
             <div className="space-y-2">
               <Button variant="secondary" onClick={() => setRewardsOpen(true)} className="w-full gap-2"><Gift size={18} /> Ganhar Moedas Grátis</Button>
               <ShareButton />
@@ -474,7 +534,7 @@ function App() {
 }
 
 function Screen({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-background text-foreground">{children}</div>;
+  return <div className="relative mx-auto flex min-h-dvh max-w-md flex-col bg-background text-foreground">{children}</div>;
 }
 function Pill({ label, icon, onClick }: { label: string; icon: string; onClick: () => void }) {
   return (
@@ -492,7 +552,7 @@ function Avatar({ g }: { g: string }) {
 }
 function List({ title, empty, children }: { title: string; empty: string; children: React.ReactNode[] }) {
   return (
-    <div className="flex-1 overflow-y-auto px-5 py-6">
+    <div className="flex-1 overflow-y-auto px-5 pb-6 pt-28">
       <h1 className="mb-4 text-3xl font-extrabold">{title}</h1>
       {children.length ? <div className="space-y-3">{children}</div> : <p className="mt-16 text-center text-muted-foreground">{empty}</p>}
     </div>

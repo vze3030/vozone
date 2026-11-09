@@ -22,3 +22,4 @@
 - Check-in uses a wallet-locked database RPC and unique daily reward ledger; calendar days use America/Sao_Paulo to prevent duplicate and concurrent credits.
 - Rewarded videos remain unavailable without an eligible provider supplying authenticated completion and trusted duration; browser playback events never authorize coin rewards.
 - Guest profile is a session dialog backed by the existing capability wallet, not a permanent account; native sharing uses the production URL with clipboard fallback.
+- Social tools and capability-wallet dialogs are shared across home, search and call views; unread notifications derive from received messages and locally persisted read counts, never simulated alerts.
